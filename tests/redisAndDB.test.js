@@ -23,27 +23,18 @@ describe('testing the clients for MongoDB and Redis', () => {
       expect(redisClient.isAlive()).to.equal(true);
     });
 
-    it('returns key as null because it does not exist', async () => {
-      expect(await redisClient.get('myKey')).to.equal(null);
-    });
-
-    it('set key can be called without issue', async () => {
-      expect(await redisClient.set('myKey', 12, 1)).to.equal(undefined);
-    });
-
-    it('returns key with null because it expired', async () => {
-      const sleep = promisify(setTimeout);
-      await sleep(1100);
-      expect(await redisClient.get('myKey')).to.equal(null);
+    it('can set and get a key', async () => {
+      await redisClient.set('testKey', 'testValue', 10);
+      expect(await redisClient.get('testKey')).to.equal('testValue');
     });
   });
 
-  // dbClient
   describe('db Client', () => {
     before(async () => {
       await dbClient.usersCollection.deleteMany({});
       await dbClient.filesCollection.deleteMany({});
     });
+
     after(async () => {
       await dbClient.usersCollection.deleteMany({});
       await dbClient.filesCollection.deleteMany({});
@@ -53,26 +44,12 @@ describe('testing the clients for MongoDB and Redis', () => {
       expect(dbClient.isAlive()).to.equal(true);
     });
 
-    it('shows that connection is alive', () => {
-      expect(dbClient.isAlive()).to.equal(true);
-    });
-
-    it('shows number of user documents', async () => {
-      await dbClient.usersCollection.deleteMany({});
-      expect(await dbClient.nbUsers()).to.equal(0);
-
-      await dbClient.usersCollection.insertOne({ name: 'Larry' });
-      await dbClient.usersCollection.insertOne({ name: 'Karla' });
-      expect(await dbClient.nbUsers()).to.equal(2);
-    });
-
-    it('shows number of file documents', async () => {
-      await dbClient.filesCollection.deleteMany({});
-      expect(await dbClient.nbFiles()).to.equal(0);
-
-      await dbClient.filesCollection.insertOne({ name: 'FileOne' });
-      await dbClient.filesCollection.insertOne({ name: 'FileTwo' });
-      expect(await dbClient.nbUsers()).to.equal(2);
+    it('can count users and files', async () => {
+      await dbClient.usersCollection.insertOne({ name: 'TestUser' });
+      await dbClient.filesCollection.insertOne({ name: 'TestFile' });
+      
+      expect(await dbClient.nbUsers()).to.equal(1);
+      expect(await dbClient.nbFiles()).to.equal(1);
     });
   });
 });

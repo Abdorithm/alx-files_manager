@@ -14,10 +14,10 @@ should();
 // User Endpoints 
 
 describe('testing User Endpoints', () => {
-  const credentials = 'Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE=';
+  const credentials = 'Basic YWxpY2VAZXhhbXBsZS5jb206c2VjdXJlUGFzczEyMyE=';
   const user = {
-    email: 'bob@dylan.com',
-    password: 'toto1234!',
+    email: 'alice@example.com',
+    password: 'securePass123!',
   };
 
   before(async () => {
