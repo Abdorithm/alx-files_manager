@@ -186,9 +186,6 @@ class FilesController {
       parentId,
     };
 
-    console.log('User ID:', user._id.toString());
-    console.log('Query:', query);
-
     const result = await files.aggregate([
       { $match: query },
       { $skip: skip },
