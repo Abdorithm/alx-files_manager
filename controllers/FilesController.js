@@ -229,9 +229,7 @@ class FilesController {
   }
 
   static async pubSubHelper(req, res, updateValue) {
-    const {
-      id,
-    } = req.params;
+    const { id } = req.params;
     const user = await FilesController.retrieveUserBasedOnToken(req);
     if (!user) {
       res.status(401).send({
@@ -268,10 +266,9 @@ class FilesController {
   }
 
   static async getFile(req, res) {
-    const {
-      id,
-    } = req.params;
+    const { id } = req.params;
     const { size } = req.query;
+
     if (!id) {
       res.status(404).send({
         error: 'Not found',
@@ -295,7 +292,7 @@ class FilesController {
       });
       return;
     }
-    if (file.isPublic === false && user && file.userId !== user._id.toString()) {
+    if (file.isPublic === false && user && file.userId.toString() !== user._id.toString()) {
       res.status(404).send({
         error: 'Not found',
       });
