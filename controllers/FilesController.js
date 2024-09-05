@@ -183,7 +183,7 @@ class FilesController {
 
     const query = {
       userId: user._id,
-      parentId,
+      parentId: parentId === '0' ? '0' : ObjectId(parentId),
     };
 
     const result = await files.aggregate([
