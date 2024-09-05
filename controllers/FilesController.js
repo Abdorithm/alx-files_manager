@@ -167,7 +167,6 @@ class FilesController {
   }
 
   static async getIndex(req, res) {
-    console.log('getIndex called');
     const user = await FilesController.retrieveUserBasedOnToken(req);
     if (!user) {
       res.status(401).send({
@@ -206,9 +205,6 @@ class FilesController {
         },
       },
     ]).toArray();
-
-    console.log('Result length:', result.length);
-    console.log('First result:', result[0]);
 
     res.status(200).send(result);
   }
