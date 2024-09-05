@@ -2,7 +2,6 @@ import chai from 'chai';
 import chaiHttp from 'chai-http';
 
 import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs';
 
 import { MongoClient, ObjectID } from 'mongodb';
 import { promisify } from 'util';
@@ -11,7 +10,7 @@ import sha1 from 'sha1';
 
 chai.use(chaiHttp);
 
-describe('GET /files/:id/data', () => {
+describe('GET /files', () => {
     let testClientDb;
     let testRedisClient;
     let redisDelAsync;
@@ -23,10 +22,7 @@ describe('GET /files/:id/data', () => {
     let initialUserId = null;
     let initialUserToken = null;
 
-    let initialUnpublishedFolderId = null;
-    let initialPublishedFolderId = null;
-
-    const folderTmpFilesManagerPath = process.env.FOLDER_PATH || '/tmp/files_manager';
+    let initialFiles = [];
 
     const fctRandomString = () => {
         return Math.random().toString(36).substring(2, 15);
@@ -37,13 +33,6 @@ describe('GET /files/:id/data', () => {
             await redisDelAsync(key);
         });
     }
-    const fctRemoveTmp = () => {
-        if (fs.existsSync(folderTmpFilesManagerPath)) {
-            fs.readdirSync(`${folderTmpFilesManagerPath}/`).forEach((i) => {
-                fs.unlinkSync(`${folderTmpFilesManagerPath}/${i}`)
-            })
-        }
-    }
 
     beforeEach(() => {
         const dbInfo = {
@@ -52,7 +41,6 @@ describe('GET /files/:id/data', () => {
             database: process.env.DB_DATABASE || 'files_manager'
         };
         return new Promise((resolve) => {
-            fctRemoveTmp();
             MongoClient.connect(`mongodb://${dbInfo.host}:${dbInfo.port}/${dbInfo.database}`, { useUnifiedTopology: true }, async (err, client) => {
                 testClientDb = client.db(dbInfo.database);
             
@@ -69,30 +57,19 @@ describe('GET /files/:id/data', () => {
                     initialUserId = createdDocs.ops[0]._id.toString();
                 }
 
-                // Add 1 folder unpublished
-                const initialUnpublishedFolder = { 
-                    userId: ObjectID(initialUserId), 
-                    name: fctRandomString(), 
-                    type: "folder", 
-                    parentId: '0',
-                    isPublic: false
-                };
-                const createdUFolderDocs = await testClientDb.collection('files').insertOne(initialUnpublishedFolder);
-                if (createdUFolderDocs && createdUFolderDocs.ops.length > 0) {
-                    initialUnpublishedFolderId = createdUFolderDocs.ops[0]._id.toString();
-                }
-
-                // Add 1 folder published 
-                const initialPublishedFolder = { 
-                    userId: ObjectID(initialUserId), 
-                    name: fctRandomString(), 
-                    type: "folder", 
-                    parentId: '0',
-                    isPublic: true
-                };
-                const createdPFolderDocs = await testClientDb.collection('files').insertOne(initialPublishedFolder);
-                if (createdPFolderDocs && createdPFolderDocs.ops.length > 0) {
-                    initialPublishedFolderId = createdPFolderDocs.ops[0]._id.toString();
+                // Add folders
+                for(let i = 0 ; i < 25 ; i += 1) {
+                    const item = { 
+                        userId: ObjectID(initialUserId), 
+                        name: fctRandomString(), 
+                        type: "folder", 
+                        parentId: '0' 
+                    };
+                    const createdFileDocs = await testClientDb.collection('files').insertOne(item);
+                    if (createdFileDocs && createdFileDocs.ops.length > 0) {
+                        item.id = createdFileDocs.ops[0]._id.toString();
+                    }
+                    initialFiles.push(item)
                 }
 
                 testRedisClient = redis.createClient();
@@ -114,35 +91,35 @@ describe('GET /files/:id/data', () => {
         
     afterEach(() => {
         fctRemoveAllRedisKeys();
-        fctRemoveTmp();
     });
 
-    it('GET /files/:id/data with an unpublished folder linked to :id and user authenticated and owner', (done) => {
+    it('GET /files with no parentId and no page', (done) => {
         chai.request('http://localhost:5000')
-            .get(`/files/${initialUnpublishedFolderId}/data`)
+            .get(`/files`)
             .set('X-Token', initialUserToken)
             .end(async (err, res) => {
                 chai.expect(err).to.be.null;
-                chai.expect(res).to.have.status(400);
+                chai.expect(res).to.have.status(200);
 
-                const resError = res.body.error;
-                chai.expect(resError).to.equal("A folder doesn't have content");
+                const resList = res.body;
                 
-                done();
-            });
-    }).timeout(30000);
-
-    it('GET /files/:id/data with a published folder linked to :id and user authenticated and owner', (done) => {
-        chai.request('http://localhost:5000')
-            .get(`/files/${initialPublishedFolderId}/data`)
-            .set('X-Token', initialUserToken)
-            .end(async (err, res) => {
-                chai.expect(err).to.be.null;
-                chai.expect(res).to.have.status(400);
-
-                const resError = res.body.error;
-                chai.expect(resError).to.equal("A folder doesn't have content");
+                chai.expect(resList.length).to.equal(20);
                 
+                resList.forEach((item) => {
+                    const itemIdx = initialFiles.findIndex((i) => i.id == item.id);
+                    chai.assert.isAtLeast(itemIdx, 0);
+                    
+                    const itemInit = initialFiles.splice(itemIdx, 1)[0];
+                    chai.expect(itemInit).to.not.be.null;
+
+                    chai.expect(itemInit.id).to.equal(item.id);
+                    chai.expect(itemInit.name).to.equal(item.name);
+                    chai.expect(itemInit.type).to.equal(item.type);
+                    chai.expect(itemInit.parentId).to.equal(item.parentId);
+                });
+                
+                chai.expect(initialFiles.length).to.equal(5);
+
                 done();
             });
     }).timeout(30000);

@@ -167,6 +167,7 @@ class FilesController {
   }
 
   static async getIndex(req, res) {
+    console.log('getIndex called');
     const user = await FilesController.retrieveUserBasedOnToken(req);
     if (!user) {
       res.status(401).send({
@@ -174,50 +175,42 @@ class FilesController {
       });
       return;
     }
-    const {
-      parentId,
-      page,
-    } = req.query;
+
+    const { parentId = '0', page = 0 } = req.query;
     const files = dbClient.db.collection('files');
 
     const pageSize = 20;
-    const pageNumber = page || 1;
-    const skip = (pageNumber - 1) * pageSize;
+    const skip = parseInt(page, 10) * pageSize;
 
-    let query;
-    if (!parentId) {
-      query = {
-        userId: user._id.toString(),
-      };
-    } else {
-      query = {
-        userId: user._id.toString(),
-        parentId,
-      };
-    }
+    const query = {
+      userId: user._id,
+      parentId,
+    };
+
+    console.log('User ID:', user._id.toString());
+    console.log('Query:', query);
 
     const result = await files.aggregate([
+      { $match: query },
+      { $skip: skip },
+      { $limit: pageSize },
       {
-        $match: query,
-      },
-      {
-        $skip: skip,
-      },
-      {
-        $limit: pageSize,
+        $project: {
+          _id: 0,
+          id: '$_id',
+          userId: 1,
+          name: 1,
+          type: 1,
+          isPublic: 1,
+          parentId: 1,
+        },
       },
     ]).toArray();
 
-    const finalResult = result.map((file) => {
-      const newFile = {
-        ...file,
-        id: file._id,
-      };
-      delete newFile._id;
-      delete newFile.localPath;
-      return newFile;
-    });
-    res.status(200).send(finalResult);
+    console.log('Result length:', result.length);
+    console.log('First result:', result[0]);
+
+    res.status(200).send(result);
   }
 
   static putPublish(req, res) {
